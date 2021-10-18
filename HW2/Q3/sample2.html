@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<style> /* set the CSS */
+
+.line {
+  fill: none;
+  stroke: steelblue;
+  stroke-width: 2px;
+}
+
+</style>
+<body>
+
+<!-- load the d3.js library -->    	
+<script src="https://d3js.org/d3.v5.min.js"></script>
+<script>
+
+// set the dimensions and margins of the graph
+var margin = {top: 20, right: 20, bottom: 50, left: 70},
+    width = 960 - margin.left - margin.right,
+    height = 500 - margin.top - margin.bottom;
+
+// parse the date / time
+var parseTime = d3.timeParse("%y-%m-%d");
+
+// set the ranges
+var x = d3.scaleTime().range([0, width]);
+var y = d3.scaleLinear().range([height, 0]);
+
+// define the line
+var valueline = d3.line()
+    .x(function(d) { return x(d.date); })
+    .y(function(d) { return y(d["Catan=rank"]); });
+
+console.log(valueline);
+
+// append the svg obgect to the body of the page
+// appends a 'group' element to 'svg'
+// moves the 'group' element to the top left margin
+var svg = d3.select("body").append("svg")
+    .attr("width", width + margin.left + margin.right)
+    .attr("height", height + margin.top + margin.bottom)
+  .append("g")
+    .attr("transform",
+          "translate(" + margin.left + "," + margin.top + ")");
+
+// Get the data
+
+var timeConv = d3.timeParse("%Y-%m-%d");
+d3.csv("boardgame_ratings.csv").then(function(data) {
+
+  // format the data
+  data.forEach(function(d) {
+      d.date = timeConv(d.date);
+      //d.close = +d.close;
+      d["Catan=count"] = d["Catan=count"];
+      d["Catan=rank"] = d["Catan=rank"];
+      d["Dominion=count"] = d["Dominion=count"];
+      d["Dominion=rank"] = d["Dominion=rank"];
+      d["Codenames=count"] = d["Codenames=count"];
+      d["Codenames=rank"] = d["Codenames=rank"];
+      d["Terraforming Mars=count"] = d["Terraforming Mars=count"];
+      d["Terraforming Mars=rank"] = d["Terraforming Mars=rank"];
+      d["Gloomhaven=count"] = d["Gloomhaven=count"];
+      d["Gloomhaven=rank"] = d["Gloomhaven=rank"];
+      d["Magic: The Gathering=count"] = d["Magic: The Gathering=count"];
+      d["Magic: The Gathering=rank"] = d["Magic: The Gathering=rank"];
+      d["Dixit=count"] = d["Dixit=count"];
+      d["Dixit=rank"] = d["Dixit=rank"];
+      d["Monopoly=count"] = d["Monopoly=count"];
+      d["Monopoly=rank"] = d["Monopoly=rank"];
+      
+
+
+  });
+
+  dates = []
+  for (var i = 0; i<data.length; i+=1){
+    dates[i] = data[i].date;
+  }
+  console.log(dates);
+
+  // Scale the range of the data
+  x.domain([dates[0], dates[dates.length-1]]);
+  y.domain([0, d3.max(data, function(d) { return d["Catan=rank"] + 100; })]);
+
+  console.log(data.date);
+
+  // const line = d3.line()
+  //   .x(function(d) { return xScale(d.date); })
+  //   .y(function(d) { return yScale(d["Catan=rank"]); }); 
+
+  // Add the valueline path.
+  svg.append("path")
+      .data([data])
+      .attr("class", "line")
+      .attr("d", valueline);
+
+  // Add the x Axis
+  svg.append("g")
+      .attr("transform", "translate(0," + height + ")")
+      .call(d3.axisBottom(x))
+      //.tickFormat(d3.timeFormat('%b %d'))
+      //.scale(xScale)
+      .ticks(d3.timeMonth.every(5))
+      .tickFormat(d3.timeFormat('%b %d'))
+      .scale(xScale);
+//
+  // Add the y Axis
+  svg.append("g")
+      .call(d3.axisLeft(y));
+
+
+});
+
+</script>
+</body>

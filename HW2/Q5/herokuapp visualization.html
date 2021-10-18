@@ -1,0 +1,474 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Choropleth map sharing Average Temperatures and Carbondioxide emissions</title>
+    <script src="https://d3js.org/d3.v4.min.js"></script>
+    <script src="https://d3js.org/d3-scale-chromatic.v1.min.js"></script>
+    <script src="https://d3js.org/d3-geo-projection.v2.min.js"></script>
+    <style>
+        body {
+            background-color: #ffffff;
+        }
+
+        .axis {
+            color: #000000;
+        }
+
+        .line {
+            fill: none;
+            stroke: #496876;
+            stroke-width: .8;
+        }
+
+        .line-c {
+            fill: none;
+            stroke: #FB6A4A;
+            stroke-width: .8;
+        }
+
+        .dot {
+            fill: #496876;
+            stroke: #eee;
+        }
+
+        .dot-c {
+            fill: #FB6A4A;
+            stroke: #eee;
+        }
+
+        .countries {
+            fill: none;
+            stroke: #fff;
+            stroke-linejoin: round;
+        }
+
+        .legendThreshold {
+            font-size: 12px;
+            font-family: sans-serif;
+        }
+
+        .caption {
+            fill: #000;
+            text-anchor: start;
+            font-weight: bold;
+        }
+
+        .slider {
+            -webkit-appearance: none;
+            width: 100%;
+            height: 8px;
+            background: #456876;
+            border-radius: 5px;
+            outline: none;
+            opacity: 0.64;
+            margin-left: 6px;
+            -webkit-transition: .2s;
+            transition: opacity .2s;
+        }
+
+        #line-calibrator {
+            margin-top: -26px;
+            color: black;
+            font-weight: bold;
+            z-index: -1;
+        }
+
+        #toolTip {
+            position: absolute;
+            text-align: center;
+            width: 90px;
+            padding: 6px;
+            font: 12px sans-serif;
+            background: #ededed;
+            border: 0;
+            border-radius: 8px;
+            pointer-events: none;
+        }
+
+    </style>
+
+
+</head>
+<body>
+<div style="width: 100%">
+    <div style="width: 100%; margin-bottom: 50px ">
+
+        <div style="background: transparent;  width: 30%; top: 50px; position: absolute; margin-left: 25px;">
+            <div style="height: 300px;">
+                <span id="year"
+                      style="display: inline-block; color:#456876; font-weight: bold; font-size: 20px;  border: 2px #A3A7AA solid ;float: left;width: 55px;text-align:center ; border-radius:50%;margin-top: -16px; background-color: white; margin-right: 15px; height: 40px; padding-top: 18px">2018</span>
+                <span style="display: inline-block; float:left;font-size:32px;opacity: 0.9; color: #456876; margin-bottom: 26px">
+                <span id="country">Country</span></span>
+                <div style=" border-radius:2px; padding-bottom: 20px; padding-left: 10px; clear: both">
+                    <div id="temperature"><img src="images/temperature.png"
+                                               style="width: 55px; height: 65px; display: inline-block; float: left; margin-right: 6px">
+                        <h4 style="opacity: 0.68">Average Temperatures</h4>
+                        <span style="opacity: 0.79; color: #456876" id="temperature_value">0.00 &#xb0 C</span></div>
+                    <div style="margin-top: 40px"><img src="images/cloud.png"
+                                                       style="width: 45px; height: 45px; margin-top: 11px; display: inline-block; float: left; margin-right: 16px">
+                        <h4 style="opacity: 0.68;">CO<sub>2</sub> Emissions</h4>
+                        <span style="opacity: 0.49; color: #456876" id="co2_emmissions">0.00</span></div>
+                </div>
+            </div>
+            <div style="margin-left: 10px; margin-top: -50px; padding-left: 40px"><span
+                    style="display: inline-block; margin-right:8px;width: 20px; height: 20px; background: #496876; "></span>
+                Average Temperatures (&#xb0 C)<br/>
+                <span><span
+                        style="display: inline-block; width: 20px;margin-right: 8px; margin-top: 8px; height: 20px; background: #FB6A4A; "></span> CO<sub>2</sub> Emmissions
+            </div>
+            <div id="timeline" style="margin-top: -50px">
+                <svg></svg>
+            </div>
+        </div>
+        <div style="width:80%;  float: right">
+            <svg id="map"></svg>
+        </div>
+    </div>
+    <div class="sliderContainer" style=" clear: both; width: 80%; margin-left: 10%;">
+        <input id="year-slider" type="range" value="2004" class="slider">
+        <svg id="line-calibrator"></svg>
+    </div>
+</div>
+<div id="toolTip"></div>
+
+
+<script>
+    //get the viewport of the device viewing this visualization and Initialize variables
+    var viewPortDimension = getViewPort();
+    var SVG_WIDTH_FOR_MAP = viewPortDimension.width - (viewPortDimension.width / 4),
+        SVG_HEIGHT_FOR_MAP = viewPortDimension.height - 80,
+        SCALE_FACTOR_FOR_SVG_MAP = 1.68,
+        SELECTED_COUNTRY_COLOR = '#456876',
+        DEFAULT_COUNTRY_ID = 'AUS',
+        COUNTRY_SEPARATOR_LINE_COLOR = '#777',
+        COUNTRY_COLORS = ['#DEA368', '#1B689D', '#268B26', '#97ADCA', '#DE8482', '#BA2223', '#DABEA4', '#45BE45', '#eee'],
+        LINE_GRAPH_MARGINS = {left: 50, top: 50, right: 50, bottom: 50},
+        DEGREES_UNICODE = '&#xb0',
+        lastSelectedCountry = {},
+        averageTemperatureDataFromJSONFile, userSelectedYear;
+
+    //get reference to the svg element and set its attributes
+    var svg = d3.select('#map');
+    svg.attr('width', SVG_WIDTH_FOR_MAP);
+    svg.attr('height', SVG_HEIGHT_FOR_MAP);
+
+    // Map and projection
+    var path = d3.geoPath();
+    var projection = d3.geoNaturalEarth()
+        .scale(SVG_WIDTH_FOR_MAP / SCALE_FACTOR_FOR_SVG_MAP / Math.PI)
+        .translate([SVG_WIDTH_FOR_MAP / 2, SVG_HEIGHT_FOR_MAP / 2]);
+    path = path.projection(projection);
+
+
+    // Data and Color scale
+    var countriesColorMap = {};
+    var nameLookUp = d3.map();
+
+    // Load external data and boot
+    d3.queue()
+        .defer(d3.json, "./data/countries_data.geojson")
+        .defer(d3.json, "./data/average_temperature.json")
+        .await(ready);
+
+
+    //this function will be called after all the data is files are read completely
+
+    function ready(error, mapGeographicalData, averageTemperatureJSONData) {
+        if (error) throw error;
+        setCountryColors(averageTemperatureJSONData)
+        averageTemperatureDataFromJSONFile = averageTemperatureJSONData;
+        createNameLookup(averageTemperatureDataFromJSONFile.name_lookup);
+        g = svg.append("g")
+            .attr("class", "countries")
+            .selectAll("path")
+            .data(mapGeographicalData.features)
+            .enter()
+            .append("path")
+            .attr("fill", function (d) {
+                if(!countriesColorMap[d.id]){
+                    console.log(d.id)
+                }
+                if (d.id === DEFAULT_COUNTRY_ID) {
+                    lastSelectedCountry.id = DEFAULT_COUNTRY_ID;
+                    lastSelectedCountry.color = countriesColorMap[d.id] || COUNTRY_COLORS[COUNTRY_COLORS.length-1];
+                    lastSelectedCountry.country = d3.select(this);
+                    return SELECTED_COUNTRY_COLOR;
+                }
+
+                return  countriesColorMap[d.id] || COUNTRY_COLORS[COUNTRY_COLORS.length-1];
+            }).on('click', function (d) {
+                var values = averageTemperatureDataFromJSONFile[d.id];
+                if (!values) {
+                    alert('No Information for the selected country');
+                    return;
+                }
+                bindDataToView(values)
+                //this is the first time the user clicks any portion of the map
+                if (!lastSelectedCountry) {
+                    lastSelectedCountry = {id: d.id, color: countriesColorMap[d.id] || 0, country: d3.select(this)};
+                    d3.select(this).attr('fill', SELECTED_COUNTRY_COLOR);
+                }
+                //this happens when the user clicks the last clicked country
+                else if (d.id === lastSelectedCountry.id) {
+                }
+                //this happens when the user clicks another portion of the map. show previous color before it was clicked.
+                else {
+                    lastSelectedCountry.country.attr('fill', lastSelectedCountry.color);
+                    d3.select(this).attr('fill', SELECTED_COUNTRY_COLOR);
+                    lastSelectedCountry = {id: d.id, color: countriesColorMap[d.id] || 0, country: d3.select(this)};
+                }
+            }).attr("d", path)
+            .attr('stroke', COUNTRY_SEPARATOR_LINE_COLOR)
+            .append('title').text(function (d) {
+                return nameLookUp[d.id];
+            });
+        d3.select('#year-slider').on('change', function () {
+            if (!lastSelectedCountry) {
+                return;
+            }
+            var data = averageTemperatureDataFromJSONFile[lastSelectedCountry.id];
+            bindDataToView(data);
+        });
+
+        //load Australia data by default
+        var firstPageRendering = true;
+        bindDataToView(averageTemperatureDataFromJSONFile[DEFAULT_COUNTRY_ID], firstPageRendering);
+    }
+
+    function setCountryColors(averageTemperatureJSONData) {
+        var i = 0;
+        for (key in averageTemperatureJSONData) {
+            if (key !== 'name_lookup') {
+                if (averageTemperatureJSONData.hasOwnProperty(key) && !countriesColorMap[averageTemperatureJSONData[key].id]) {
+                    countriesColorMap[averageTemperatureJSONData[key].id] = COUNTRY_COLORS[(4*i)%COUNTRY_COLORS.length];
+                    i++;
+                }
+            }
+        }
+    }
+
+
+    function drawSliderCalibration(minMaxYear) {
+        d3.select('#line-calibrator').remove();
+        //create x axis
+        var svgContainer = d3.select('.sliderContainer');
+        var width = d3.select('#year-slider').property('clientWidth');
+        var height = 80;
+        var lineCalibratorSVG = svgContainer.append('svg')
+            .attr('width', width).attr('id', 'line-calibrator');
+        var xScale = d3.scaleLinear().domain(minMaxYear).range([0, width]);
+
+        d3.select('.line-axis').remove();
+        lineCalibratorSVG.append('g').attr('class', ' line-axis')
+            .attr('transform', 'translate(0,' + height / 4 + ')')
+            .call(d3.axisBottom(xScale).tickFormat(d3.format('d')));
+        lineCalibratorSVG.append('g').attr('transform', 'translate(' + width / 2.5 + ',' + height + ')').append('text').text('Years')
+            .style('font-size', '14px')
+            .style('opacity', '0.7');
+    }
+    function bindDataToView(data, firstPageRendering) {
+        //Slider <input type='range' /> at the top of caliberation
+        var yearSlider = d3.select('#year-slider');
+
+        //get the mininum and maximum year is the data of the country selected by the user
+        var minMaxYear = d3.extent(data.values, function (d) {
+            return +d.Year;
+        });
+
+        //set the min and maximum value for the slider at bottom
+        yearSlider.attr('min', minMaxYear[0]);
+        yearSlider.attr('max', minMaxYear[1]);
+
+        //ensure that the selected value does not go out of range
+        userSelectedYear = yearSlider.property('value');
+        if (userSelectedYear < minMaxYear[0])
+            userSelectedYear = minMaxYear[0];
+        if (userSelectedYear > minMaxYear[1])
+            userSelectedYear = minMaxYear[1];
+        if (firstPageRendering) {
+            userSelectedYear = minMaxYear[1];
+            yearSlider.attr('value', userSelectedYear);
+        }
+        //update the year in circle, at the top-left of the visualization page
+        d3.select('#year').text(userSelectedYear);
+
+        //get the data for the year selected by the user and update the values on the top - left part of the screen
+        var valuesForUserSelectedYear = data['yearMap'][userSelectedYear];
+        d3.select('#country').style('font-size', function (d) {
+            return (valuesForUserSelectedYear.Country.length < 10 ? 32 : 23 ) + 'px';
+        }).text(valuesForUserSelectedYear.Country);
+        d3.select('#temperature_value').html(formatToNDecimalPlaces(valuesForUserSelectedYear.AverageTemperature, 2) + DEGREES_UNICODE + ' C');
+        d3.select('#co2_emmissions').html(formatToNDecimalPlaces(valuesForUserSelectedYear.Co2_Emissions, 2));
+        drawSliderCalibration(minMaxYear);
+        minMaxYear = [minMaxYear[0], userSelectedYear];
+        drawLineGraphs(data, minMaxYear);
+    }
+
+    function drawLineGraphs(data, minMaxYear) {
+        //prepare svg for line drawing
+        var svgContainer = d3.select('#timeline');
+        var lineSVGWidth = svgContainer.property('clientWidth') - LINE_GRAPH_MARGINS.left - LINE_GRAPH_MARGINS.right;
+        var lineSVGHeight = 400 - LINE_GRAPH_MARGINS.top - LINE_GRAPH_MARGINS.bottom;
+        var lineSVG = svgContainer.select('svg');
+        lineSVG.attr('width', lineSVGWidth + LINE_GRAPH_MARGINS.left + LINE_GRAPH_MARGINS.right);
+        lineSVG.attr('height', lineSVGHeight + LINE_GRAPH_MARGINS.top + LINE_GRAPH_MARGINS.bottom);
+        lineSVG = lineSVG.append('g');
+        lineSVG.attr('transform', 'translate(' + LINE_GRAPH_MARGINS.left + ',' + LINE_GRAPH_MARGINS.top + ')');
+
+        //create x scale
+        var xScale = d3.scaleLinear().domain(minMaxYear).range([0, lineSVGWidth]);
+        //create x axis
+        svgContainer.select('.x-axis').remove();
+        var xAxisContainer = lineSVG.append('g');
+        xAxisContainer.attr('class', 'x axis x-axis')
+            .attr('transform', 'translate(0,' + lineSVGHeight + ')')
+            .call(d3.axisBottom(xScale).tickFormat(d3.format('d')))
+            .append('text').text();
+
+        d3.select('.x-axis-label').remove();
+        lineSVG.append('g').style('font-size', '14px').attr('class', 'x-axis-label').attr('transform', 'translate(' + lineSVGWidth / 2.2 + ',' + (lineSVGHeight + LINE_GRAPH_MARGINS.bottom / 1.2) + ')')
+            .append('text').text('Years');
+        d3.select('.y-axis-label').remove();
+        lineSVG.append('g').style('font-size', '14px').attr('class', 'y-axis-label').attr('transform', 'translate(' + -LINE_GRAPH_MARGINS.left / 2.2 + ',' + lineSVGHeight / 1.3 + ') rotate(270)')
+            .append('text').text('Temperature/Co2 Emissions');
+
+        //this following is used on the Y axis
+        //get the minimum and maximum temperature
+        var minMaxTemp = d3.extent(data.values, function (d) {
+            return +formatToNDecimalPlaces(d.AverageTemperature, 2);
+        });
+
+        //get the minimum and maximum c02 emmissions
+        var minC02 = d3.min(data.values, function (d) {
+            return +formatToNDecimalPlaces(d.Co2_Emissions, 2);
+        });
+        var maxC02 = d3.max(data.values, function (d) {
+            return +formatToNDecimalPlaces(d.Co2_Emissions, 2);
+        });
+
+
+        //create y scale for temperature
+        var yScale = d3.scaleLinear().domain(minMaxTemp)
+            .range([lineSVGHeight, 0]);
+
+        //create y scale for C02 emmissions
+        var c02Scale = d3.scaleLinear().domain([minC02, maxC02])
+            .range([lineSVGHeight, 0]);
+
+        /*tickValues([]) is used so that the Y axis will not have labels, since the labels for C02 will be different from that of Average temperature*/
+        d3.select('.y-axis').remove();
+        //create y axis for temperature values calibration on the y axis
+        lineSVG.append('g').attr('class', 'y axis y-axis')
+            .call(d3.axisLeft(yScale).tickValues([]));
+
+
+        //filter the selected country data up to the maximum year selected by the user
+        var dataToBeUsed = data.values.filter(function (d) {
+            return (+d.Year) <= minMaxYear[1]
+        })
+
+        //Temperature line generator
+        var temperatureLineGenerator = d3.line().x(function (d) {
+            return xScale(d.Year)
+        }).y(function (d) {
+            return yScale(formatToNDecimalPlaces(d.AverageTemperature, 2));
+        }).curve(d3.curveMonotoneX);
+
+        //lineC02 generator
+        var c02LineGenerator = d3.line().x(function (d) {
+            return xScale(+d.Year)
+        }).y(function (d) {
+            return c02Scale(formatToNDecimalPlaces(+d.Co2_Emissions, 2));
+        }).curve(d3.curveMonotoneX);
+
+        //apend the path, bind the data, and call line generator for average temperature
+        d3.select('#line-path').remove();
+        var filling = lineSVG.append('path')
+            .datum(dataToBeUsed)
+            .attr('id', 'line-path').attr('class', 'line').attr('d', temperatureLineGenerator);
+
+        //apend the path, bind the data, and call line generator for Co2
+        d3.select('#line-path-c02').remove();
+        lineSVG.append('path')
+            .datum(dataToBeUsed)
+            .attr('id', 'line-path-c02').attr('class', 'line-c').attr('d', c02LineGenerator);
+
+        var toolTip = d3.select('#toolTip');
+        d3.selectAll('.dot').remove();
+        lineSVG.selectAll('.dot').data(dataToBeUsed)
+            .enter().append('circle').attr('class', 'dot')
+            .attr('cx', function (d) {
+                return xScale(d.Year)
+            }).attr('cy', function (d) {
+            return yScale(formatToNDecimalPlaces(+d.AverageTemperature, 2));
+        }).attr('r', 2.8).on("mouseover", function (d) {
+            toolTip.transition()
+                .duration(200)
+                .style("opacity", .9);
+            toolTip.html(formatToNDecimalPlaces(d.AverageTemperature, 2) + DEGREES_UNICODE + ' C')
+                .style("left", (d3.event.pageX) + "px")
+                .style("top", (d3.event.pageY - 28) + "px");
+        }).on("mouseout", function (d) {
+            toolTip.transition()
+                .duration(500)
+                .style("opacity", 0);
+        });
+
+
+        d3.selectAll('.dot-c').remove();
+        lineSVG.selectAll('.dot-c').data(dataToBeUsed)
+            .enter().append('circle').attr('class', 'dot-c')
+            .attr('cx', function (d) {
+                return xScale(d.Year)
+            }).attr('cy', function (d) {
+            return c02Scale(formatToNDecimalPlaces(+d.Co2_Emissions, 2));
+        }).attr('r', 2.8).on("mouseover", function (d) {
+            toolTip.transition()
+                .duration(200)
+                .style("opacity", .9);
+            toolTip.html(formatToNDecimalPlaces(+d.Co2_Emissions, 2))
+                .style("left", (d3.event.pageX) + "px")
+                .style("top", (d3.event.pageY - 28) + "px");
+        }).on("mouseout", function (d) {
+            toolTip.transition()
+                .duration(500)
+                .style("opacity", 0);
+        });
+    }
+
+
+    /*This function creates a key value pair object for country id and country name
+     *  for example, the country id for Afghanistan is AFG, so nameLookUp['AFG'] will produce Afghanistan
+     * */
+    function createNameLookup(countryNamesMap) {
+        for (var key in countryNamesMap) {
+            if (countryNamesMap.hasOwnProperty(key)) {
+                nameLookUp[key] = countryNamesMap[key];
+            }
+        }
+    }
+
+    /*
+     * This function rounds @number to @decimalPlace
+     * */
+    function formatToNDecimalPlaces(number, decimalPlace) {
+        return parseFloat(Math.round(+number * Math.pow(10, decimalPlace)) / Math.pow(10, decimalPlace)).toFixed(decimalPlace);
+    }
+
+    /*This calculates the viewport to show the visualization*/
+    function getViewPort() {
+        var viewPortToUse = window;
+        var widthIdentifier = 'inner';
+        if (!('innerWidth' in window)) {
+            widthIdentifier = 'client';
+            viewPortToUse = document.documentElement || document.body;
+        }
+        return {width: viewPortToUse[widthIdentifier + 'Width'], height: viewPortToUse[widthIdentifier + 'Height']}
+    }
+
+</script>
+
+</body>
+</html>
+

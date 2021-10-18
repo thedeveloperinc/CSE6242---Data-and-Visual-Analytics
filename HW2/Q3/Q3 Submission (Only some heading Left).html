@@ -1,0 +1,879 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+
+<!-- Load d3.js -->
+<script src="../lib/d3.v5.min.js"></script>
+
+<!-- Create a div where the graph will take place -->
+<div id="my_dataviz"></div>
+<style type="text/css">
+	/* AXES */
+/* ticks */
+.axis line{
+stroke: #706f6f;
+stroke-width: 0.5;
+shape-rendering: crispEdges;
+}
+
+/* axis contour */
+path {
+stroke: #706f6f;
+stroke-width: 0.5;
+
+fill: none;
+}
+
+/* axis text */
+.axis text {
+fill: #2b2929;
+font-size: 80%;
+}
+
+
+.dot {
+    fill: #ffab00;
+    stroke: #fff;
+}
+/* LINE CHART */
+path.line {
+    fill: none;
+    stroke: black;
+}
+
+path.line-1 {
+    fill: none;
+    stroke: black;
+}
+
+path.line-2 {
+    fill: none;
+    stroke: black;
+}
+
+path.line-3 {
+    fill: none;
+    stroke: black;
+}
+
+path.line-4 {
+    fill: none;
+    stroke: black;
+}
+
+path.line-5 {
+    fill: none;
+    stroke: black;
+}
+
+path.line-6 {
+    fill: none;
+    stroke: black;
+}
+
+path.line-7 {
+    fill: none;
+    stroke: black;
+}
+
+path.line-8 {
+    fill: none;
+    stroke: black;
+}
+
+path.line-9 {
+    fill: none;
+    stroke: black;
+}
+
+path.line-10 {
+    fill: none;
+    stroke: black;
+}
+
+path.line-11 {
+    fill: none;
+    stroke: black;
+}
+
+path.line-12 {
+    fill: none;
+    stroke: black;
+}
+
+path.line-13 {
+    fill: none;
+    stroke: black;
+}
+
+path.line-14 {
+    fill: none;
+    stroke: black;
+}
+
+path.line-15 {
+    fill: none;
+    stroke: black;
+}
+
+path.line-16 {
+    fill: none;
+    stroke: #2b2929;
+}
+
+
+
+.serie_label {
+  fill: #2b2929;
+  font-family: Georgia;
+  font-size: 50%;
+  dx: 1em;
+}
+	
+</style>
+</head>
+<body>
+<div id="container" class="svg-container"></div>
+<script>
+
+
+var margin = {top: 20, right: 20, bottom: 30, left: 40},
+    width = 960 - margin.left - margin.right,
+    height = 500 - margin.top - margin.bottom;
+
+const padding = 5;
+const adj = 30;
+
+var colorArray = [d3.schemeCategory10];
+var colorScheme = d3.scaleOrdinal(colorArray[0])
+
+
+var x = d3.scaleBand()
+              .range([0, width])
+              .padding(0.1);
+var y = d3.scaleLinear()
+          .range([height, 0]);
+// we are appending SVG first
+const svg_1 = d3.select("div#container").append("svg")
+    .attr("preserveAspectRatio", "xMinYMin meet")
+    .attr("viewBox", "-"
+          + adj + " -"
+          + adj + " "
+          + (width + adj *3) + " "
+          + (height + adj*3))
+    .style("padding", padding)
+    .style("margin", margin)
+    .classed("svg-content", true);
+
+
+
+//-----------------------------DATA-----------------------------//
+const timeConv = d3.timeParse("%Y-%m-%d");
+const dataset = d3.csv("boardgame_ratings.csv");
+//console.log(dataset)
+dataset.then(function(data) {
+    var slices = data.columns.slice(1).map(function(id) {
+        
+        //if (id.includes("rank") == false) {
+            //console.log(id);
+            return {
+
+                id: id,
+                values: data.map(function(d){
+
+                    return {
+                        date: timeConv(d.date),
+                        measurement: +d[id]
+                    };
+                })
+            };
+        //}
+    });
+
+//console.log(slices);
+
+ranks = []
+count = []
+for (var i = 0; i<slices.length; i+=1){
+    if(i%2==0){
+        count.push(slices[i])
+    }
+    else{
+        ranks.push(slices[i])
+    }
+}
+
+
+//console.log(ranks)
+//console.log(count)
+//----------------------------SCALES----------------------------//
+var xScale = d3.scaleTime().range([0,width-50]);
+
+var yScale = d3.scaleLinear().rangeRound([height, 0]);
+xScale.domain(d3.extent(data, function(d){
+    return timeConv(d.date)}));
+yScale.domain([(0), d3.max(slices, function(c) {
+    return d3.max(c.values, function(d) {
+        return d.measurement; });
+        })
+    ]);
+
+//-----------------------------AXES-----------------------------//
+const yaxis = d3.axisLeft(y)
+    .ticks(10)
+    .scale(yScale);
+
+const xaxis = d3.axisBottom(x)
+    .ticks(d3.timeMonth.every(3))
+    .tickFormat(d3.timeFormat('%b %y'))
+    .scale(xScale);
+
+
+//----------------------------LINES-----------------------------//
+const line = d3.line()
+    .x(function(d) { return xScale(d.date); })
+    .y(function(d) { 
+        //console.log(d);
+        return yScale(d.measurement); }); 
+ 
+var i = 0;
+var j = 0;
+const color = function(){
+    return colorScheme(i++)
+}  
+
+const color1= function(){
+    return colorScheme(j++)
+} 
+//-------------------------2. DRAWING---------------------------//
+//-----------------------------AXES-----------------------------//
+
+
+
+
+
+svg_1.append("g")
+    .attr("class", "axis")
+    .attr("transform", "translate(20," + (height) + ")")
+    .call(xaxis)
+    .append("text")
+    .text("Month")
+    .attr("x", width/2)
+    .attr("dy", "4em");
+
+svg_1.append("g")
+    .attr("class", "axis")
+    .call(yaxis)
+    .attr("transform", "translate(20,0)")
+    .append("text")
+    .attr("transform", "rotate(-90)")
+    .attr("y", 0-(margin.left)-30)
+    .attr("x",0 - (height/2))
+    .attr("dy", "-5em")
+    .style("text-anchor", "middle")
+    .text("Running Total");
+//----------------------------LINES-----------------------------//
+//console.log(ranks);
+var k = 0;
+
+const color2 = function(){
+    return colorScheme(k++)
+}  
+
+
+
+
+
+
+var l=0;
+
+const color3= function(){
+    return colorScheme(l++)
+} 
+
+
+const lines = svg_1.selectAll("lines")
+    .data(count)
+    .enter()
+    //.append("g")
+
+    lines.append("path")
+    //.attr("class", "line")
+    .attr("transform", "translate(20,0)")
+    .style("stroke", color2)
+    .style("stroke-width", "1")
+    .attr("d", function(d) { return line(d.values); });
+
+
+
+    lines.append("text")
+    .attr("class","serie_label")
+    .attr("dx", "1em")
+    .datum(function(d) {
+        return {
+            id: d.id,
+            value: d.values[d.values.length - 1]}; })
+    .attr("transform", function(d) {
+            return "translate(" + (xScale(d.value.date) + 10)  
+            + "," + (yScale(d.value.measurement)  ) + ")"; })
+    .attr("x", 5)
+    .text(function(d) { return d.id.replace('=count', ''); })
+    .style("fill", color3);
+
+
+
+
+const svg_2 = d3.select("div#container").append("svg")
+    .attr("preserveAspectRatio", "xMinYMin meet")
+    .attr("viewBox", "-"
+          + adj + " -"
+          + adj + " "
+          + (width + adj *3) + " "
+          + (height + adj*3))
+    .style("padding", padding)
+    .style("margin", margin)
+    .classed("svg-content", true);
+var m = 0;
+
+var o = 0;
+var p = 0;
+
+
+const color4= function(){
+    return colorScheme(m++)
+} 
+
+const color5= function(){
+    return colorScheme(o++)
+} 
+
+const color6= function(){
+    return colorScheme(p++)
+} 
+
+var empty = []
+var empty1 = [];
+var formatMonth = d3.timeFormat("%b"),
+        formatDay = d3.timeFormat("%d");
+        var months = ["Jan", "Apr", "Jul", "Oct"]
+        var ranking_games = ["Catan=count", "Codenames=count", "Terraforming Mars=count", "Gloomhaven=count"];
+        var ranking_games_rank = ["Catan=rank", "Codenames=rank", "Terraforming Mars=rank", "Gloomhaven=rank"];
+
+
+ranks.forEach(function(entry){  
+    //console.log(entry);
+    entry.values.forEach(function(v){
+        if (ranking_games_rank.includes(entry.id)) {
+            //console.log("flag if");
+            //console.log(v);
+            x = {id:entry.id, measurement: v.measurement};
+            if (months.includes(formatMonth(v.date)))  {
+                empty1.push(x);
+            }
+        }
+        
+    })
+})
+
+console.log("empty1");
+console.log(empty1);
+
+colorflag = count[0].id;
+colorid = 0;
+count.forEach(function(entry){  
+    entry.values.forEach(function(v){
+        if (colorflag == entry.id) {
+            //console.log("flag if");
+            x = {id: colorflag, value: v, colorid: colorid}
+            if (months.includes(formatMonth(v.date)))  {
+                empty.push(x);
+            }
+        }
+        else {
+            //console.log("flag else");
+            colorflag = entry.id;
+
+            //console.log(colorid);
+            colorid+=1;
+            x = {id: colorid, value: v}
+            if (months.includes(formatMonth(v.date))){
+                empty.push(x);
+            }
+
+        }
+        
+    })
+})
+
+
+
+
+console.log("Count");
+console.log(empty);
+
+
+var lines2 = svg_2.selectAll("lines")
+    .data(count)
+    .enter()
+    .append("g");
+
+    lines2.append("path")
+    //.attr("class", "line")
+    .attr("transform", "translate(20,0)")
+    .style("stroke", color4)
+    .style("stroke-width", "1")
+    .attr("d", function(d) { 
+        if (ranking_games.includes(d.id) == false ){ 
+            return line(d.values); 
+        }
+    });
+
+svg_2.selectAll("circle")
+    .data(empty)
+    .enter()
+    .append("circle")
+    .attr("r", "10")
+    .attr("fill", function(d){
+        console.log(d);
+        if (ranking_games.includes(d.id)){return colorScheme(d.colorid);}
+        else return "None";
+        
+    })
+    .attr("cx", 20)
+    .attr("cy", 0)  
+    .attr("transform", function(d) {
+        return "translate(" + xScale(d.value.date) + "," + yScale(d.value.measurement) + ")"; })
+
+// var temp1 = empty.slice(0, 99);
+// var temp2 = empty.slice(100, 119);
+
+//console.log(temp1);
+//var ranking_games = ["Catan=count", "Codenames=count", "Terraforming Mars=count", "Gloomhaven=count"];
+
+
+var a = 0;
+svg_2.selectAll("text")
+    .data(empty)
+    .enter()
+    .append("text")
+    .text(function(d){
+        
+        if (d.id.includes("Catan") || d.id.includes("Codenames") || d.id.includes("Terraforming Mars") || d.id.includes("Gloomhaven")){
+            return empty1[a++].measurement;
+        }
+        else{
+            console.log("else")
+            return "";
+        }
+        
+    })
+    .attr("x", function(d){ 
+        return xScale(d.value.date);
+    })
+    .attr("y", function(d){ 
+        return yScale(d.value.measurement);
+    })
+    .attr("dx", "1.5em")
+    .attr("dy", "-.15em")
+    .attr("font_family", "sans-serif")  // Font type
+    .attr("font-size", "8")  // Font size
+    .attr("fill", "white") ; // Font color 
+    //.attr("stroke", "black"); 
+
+
+
+var lines1 = svg_2.selectAll("lines")
+    .data(count)
+    .enter()
+    .append("g");
+
+    lines1.append("path")
+    //.attr("class", "line")
+    .attr("transform", "translate(20,0)")
+    .style("stroke", color5)
+    .style("stroke-width", "1")
+    .attr("d", function(d) { 
+        if (ranking_games.includes(d.id) ){ 
+            return line(d.values); 
+        }
+    });
+
+
+    lines1.append("text")
+    .attr("class","serie_label")
+    .attr("dx", "1em")
+
+    .datum(function(d) {
+        return {
+            id: d.id,
+            value: d.values[d.values.length - 1]}; })
+    .attr("transform", function(d) {
+            return "translate(" + (xScale(d.value.date) + 10)  
+            + "," + (yScale(d.value.measurement)  ) + ")"; })
+    .attr("x", 5)
+    .text(function(d) { return d.id.replace('=count', ''); })
+    .style("fill", color6);
+
+//console.log("FLAG");
+
+svg_2.append("g")
+    .attr("class", "axis")
+    .attr("transform", "translate(20," + (height) + ")")
+    .call(xaxis)
+    .append("text")
+    .text("Month")
+    .attr("x", width/2)
+    .attr("dy", "4em");
+
+svg_2.append("g")
+    .attr("class", "axis")
+    .call(yaxis)
+    .attr("transform", "translate(20,0)")
+    .append("text")
+    .attr("transform", "rotate(-90)")
+    .attr("y", 0-(margin.left)-30)
+    .attr("x",0 - (height/2))
+    .attr("dy", "-5em")
+    .style("text-anchor", "middle")
+    .text("Running Total");
+//----------------------------LINES-----------------------------//
+
+
+// --------------------------------- SVG 3 ----------------------------//
+
+const svg_3 = d3.select("div#container").append("svg")
+    .attr("preserveAspectRatio", "xMinYMin meet")
+    .attr("viewBox", "-"
+          + adj + " -"
+          + adj + " "
+          + (width + adj *3) + " "
+          + (height + adj*3))
+    .style("padding", padding)
+    .style("margin", margin)
+    .classed("svg-content", true);
+
+xScale = d3.scaleTime().range([0,width-50]);
+
+yScale = d3.scaleSqrt().rangeRound([height, 0]);
+xScale.domain(d3.extent(data, function(d){
+    return timeConv(d.date)}));
+yScale.domain([(0), d3.max(slices, function(c) {
+    return d3.max(c.values, function(d) {
+        return d.measurement; });
+        })
+    ]);
+
+
+var q = 0;
+
+var r = 0;
+var s = 0;
+
+
+const color7= function(){
+    return colorScheme(q++)
+} 
+
+const color8= function(){
+    return colorScheme(r++)
+} 
+
+const color9= function(){
+    return colorScheme(s++)
+} 
+
+
+
+var lines2 = svg_3.selectAll("lines")
+    .data(count)
+    .enter()
+    .append("g");
+
+    lines2.append("path")
+    //.attr("class", "line")
+    .attr("transform", "translate(20,0)")
+    .style("stroke", color7)
+    .style("stroke-width", "1")
+    .attr("d", function(d) { 
+        if (ranking_games.includes(d.id) == false ){ 
+            return line(d.values); 
+        }
+    });
+
+svg_3.selectAll("circle")
+    .data(empty)
+    .enter()
+    .append("circle")
+    .attr("r", "10")
+    .attr("fill", function(d){
+        console.log(d);
+        if (ranking_games.includes(d.id)){return colorScheme(d.colorid);}
+        else return "None";
+        
+    })
+    .attr("cx", 20)
+    .attr("cy", 0)  
+    .attr("transform", function(d) {
+        return "translate(" + xScale(d.value.date) + "," + yScale(d.value.measurement) + ")"; })
+
+// var temp1 = empty.slice(0, 99);
+// var temp2 = empty.slice(100, 119);
+
+//console.log(temp1);
+//var ranking_games = ["Catan=count", "Codenames=count", "Terraforming Mars=count", "Gloomhaven=count"];
+
+
+var a = 0;
+svg_3.selectAll("text")
+    .data(empty)
+    .enter()
+    .append("text")
+    .text(function(d){
+        
+        if (d.id.includes("Catan") || d.id.includes("Codenames") || d.id.includes("Terraforming Mars") || d.id.includes("Gloomhaven")){
+            return empty1[a++].measurement;
+        }
+        else{
+            console.log("else")
+            return "";
+        }
+        
+    })
+    .attr("x", function(d){ 
+        return xScale(d.value.date);
+    })
+    .attr("y", function(d){ 
+        return yScale(d.value.measurement);
+    })
+    .attr("dx", "1.5em")
+    .attr("dy", "-.15em")
+    .attr("font_family", "sans-serif")  // Font type
+    .attr("font-size", "8")  // Font size
+    .attr("fill", "white") ; // Font color 
+    //.attr("stroke", "black"); 
+
+
+
+lines2 = svg_3.selectAll("lines")
+    .data(count)
+    .enter()
+    .append("g");
+
+    lines2.append("path")
+    //.attr("class", "line")
+    .attr("transform", "translate(20,0)")
+    .style("stroke", color8)
+    .style("stroke-width", "1")
+    .attr("d", function(d) { 
+        if (ranking_games.includes(d.id) ){ 
+            return line(d.values); 
+        }
+    });
+
+
+    lines2.append("text")
+    .attr("class","serie_label")
+    .attr("dx", "1em")
+
+    .datum(function(d) {
+        return {
+            id: d.id,
+            value: d.values[d.values.length - 1]}; })
+    .attr("transform", function(d) {
+            return "translate(" + (xScale(d.value.date) + 10)  
+            + "," + (yScale(d.value.measurement)  ) + ")"; })
+    .attr("x", 5)
+    .text(function(d) { return d.id.replace('=count', ''); })
+    .style("fill", color9);
+
+//console.log("FLAG");
+
+svg_3.append("g")
+    .attr("class", "axis")
+    .attr("transform", "translate(20," + (height) + ")")
+    .call(xaxis)
+    .append("text")
+    .text("Month")
+    .attr("x", width/2)
+    .attr("dy", "4em");
+
+svg_3.append("g")
+    .attr("class", "axis")
+    .call(yaxis)
+    .attr("transform", "translate(20,0)")
+    .append("text")
+    .attr("transform", "rotate(-90)")
+    .attr("y", 0-(margin.left)-30)
+    .attr("x",0 - (height/2))
+    .attr("dy", "-5em")
+    .style("text-anchor", "middle")
+    .text("Running Total");
+//----------------------------LINES-----------------------------//
+
+
+// --------------------------------- SVG 4 ----------------------------//
+
+const svg_4 = d3.select("div#container").append("svg")
+    .attr("preserveAspectRatio", "xMinYMin meet")
+    .attr("viewBox", "-"
+          + adj + " -"
+          + adj + " "
+          + (width + adj *3) + " "
+          + (height + adj*3))
+    .style("padding", padding)
+    .style("margin", margin)
+    .classed("svg-content", true);
+
+xScale = d3.scaleTime().range([0,width-50]);
+
+yScale = d3.scaleLog().rangeRound([height, 0]);
+xScale.domain(d3.extent(data, function(d){
+    return timeConv(d.date)}));
+yScale.domain([(.0000000000000000001), d3.max(slices, function(c) {
+    return d3.max(c.values, function(d) {
+        return d.measurement; });
+        })
+    ]);
+
+q = 0;
+
+r = 0;
+s = 0;
+
+
+
+
+
+var lines3 = svg_4.selectAll("lines")
+    .data(count)
+    .enter()
+    .append("g");
+
+    lines3.append("path")
+    //.attr("class", "line")
+    .attr("transform", "translate(20,0)")
+    .style("stroke", color7)
+    .style("stroke-width", "1")
+    .attr("d", function(d) { 
+        if (ranking_games.includes(d.id) == false ){ 
+            return line(d.values); 
+        }
+    });
+
+svg_4.selectAll("circle")
+    .data(empty)
+    .enter()
+    .append("circle")
+    .attr("r", "10")
+    .attr("fill", function(d){
+        console.log(d);
+        if (ranking_games.includes(d.id)){return colorScheme(d.colorid);}
+        else return "None";
+        
+    })
+    .attr("cx", 20)
+    .attr("cy", 0)  
+    .attr("transform", function(d) {
+        return "translate(" + xScale(d.value.date) + "," + yScale(d.value.measurement) + ")"; })
+
+// var temp1 = empty.slice(0, 99);
+// var temp2 = empty.slice(100, 119);
+
+//console.log(temp1);
+//var ranking_games = ["Catan=count", "Codenames=count", "Terraforming Mars=count", "Gloomhaven=count"];
+
+
+a = 0;
+svg_4.selectAll("text")
+    .data(empty)
+    .enter()
+    .append("text")
+    .text(function(d){
+        
+        if (d.id.includes("Catan") || d.id.includes("Codenames") || d.id.includes("Terraforming Mars") || d.id.includes("Gloomhaven")){
+            return empty1[a++].measurement;
+        }
+        else{
+            console.log("else")
+            return "";
+        }
+        
+    })
+    .attr("x", function(d){ 
+        return xScale(d.value.date);
+    })
+    .attr("y", function(d){ 
+        return yScale(d.value.measurement);
+    })
+    .attr("dx", "1.5em")
+    .attr("dy", "-.15em")
+    .attr("font_family", "sans-serif")  // Font type
+    .attr("font-size", "8")  // Font size
+    .attr("fill", "white") ; // Font color 
+    //.attr("stroke", "black"); 
+
+
+
+lines3 = svg_4.selectAll("lines")
+    .data(count)
+    .enter()
+    .append("g");
+
+    lines3.append("path")
+    //.attr("class", "line")
+    .attr("transform", "translate(20,0)")
+    .style("stroke", color8)
+    .style("stroke-width", "1")
+    .attr("d", function(d) { 
+        if (ranking_games.includes(d.id) ){ 
+            return line(d.values); 
+        }
+    });
+
+
+    lines3.append("text")
+    .attr("class","serie_label")
+    .attr("dx", "1em")
+
+    .datum(function(d) {
+        return {
+            id: d.id,
+            value: d.values[d.values.length - 1]}; })
+    .attr("transform", function(d) {
+            return "translate(" + (xScale(d.value.date) + 10)  
+            + "," + (yScale(d.value.measurement)  ) + ")"; })
+    .attr("x", 5)
+    .text(function(d) { return d.id.replace('=count', ''); })
+    .style("fill", color9);
+
+//console.log("FLAG");
+
+svg_4.append("g")
+    .attr("class", "axis")
+    .attr("transform", "translate(20," + (height) + ")")
+    .call(xaxis)
+    .append("text")
+    .text("Month")
+    .attr("x", width/2)
+    .attr("dy", "4em");
+
+svg_4.append("g")
+    .attr("class", "axis")
+    .call(yaxis)
+    .attr("transform", "translate(20,0)")
+    .append("text")
+    .attr("transform", "rotate(-90)")
+    .attr("y", 0-(margin.left)-30)
+    .attr("x",0 - (height/2))
+    .attr("dy", "-5em")
+    .style("text-anchor", "middle")
+    .text("Running Total");
+//----------------------------LINES-----------------------------//
+
+
+
+
+
+
+});
+</script>
+</body>

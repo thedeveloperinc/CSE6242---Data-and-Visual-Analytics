@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+
+<!-- Load d3.js -->
+<script src="../lib/d3.v5.min.js"></script>
+
+<!-- Create a div where the graph will take place -->
+<div id="my_dataviz"></div>
+<style type="text/css">
+	/* AXES */
+/* ticks */
+.axis line{
+stroke: #706f6f;
+stroke-width: 0.5;
+shape-rendering: crispEdges;
+}
+
+/* axis contour */
+.axis path {
+stroke: #706f6f;
+stroke-width: 0.7;
+shape-rendering: crispEdges;
+}
+
+/* axis text */
+.axis text {
+fill: #2b2929;
+font-size: 80%;
+}
+
+/* LINE CHART */
+path.line {
+    fill: none;
+    stroke: black;
+}
+
+path.line-1 {
+    fill: none;
+    stroke: black;
+}
+
+path.line-2 {
+    fill: none;
+    stroke: black;
+}
+
+path.line-3 {
+    fill: none;
+    stroke: black;
+}
+
+path.line-4 {
+    fill: none;
+    stroke: black;
+}
+
+path.line-5 {
+    fill: none;
+    stroke: black;
+}
+
+path.line-6 {
+    fill: none;
+    stroke: black;
+}
+
+path.line-7 {
+    fill: none;
+    stroke: black;
+}
+
+path.line-8 {
+    fill: none;
+    stroke: black;
+}
+
+path.line-9 {
+    fill: none;
+    stroke: black;
+}
+
+path.line-10 {
+    fill: none;
+    stroke: black;
+}
+
+path.line-11 {
+    fill: none;
+    stroke: black;
+}
+
+path.line-12 {
+    fill: none;
+    stroke: black;
+}
+
+path.line-13 {
+    fill: none;
+    stroke: black;
+}
+
+path.line-14 {
+    fill: none;
+    stroke: black;
+}
+
+path.line-15 {
+    fill: none;
+    stroke: black;
+}
+
+path.line-16 {
+    fill: none;
+    stroke: #2b2929;
+}
+
+
+
+.serie_label {
+  fill: #2b2929;
+  font-family: Georgia;
+  font-size: 50%;
+  dx: 1em;
+}
+	
+</style>
+</head>
+<body>
+<div id="container" class="svg-container"></div>
+<script>
+//------------------------1. PREPARATION------------------------//
+//-----------------------------SVG------------------------------// 
+const width = 960;
+const height = 500;
+const margin = 5;
+const padding = 5;
+const adj = 30;
+
+var colorArray = [d3.schemeCategory10, d3.schemeAccent];
+var colorScheme = d3.scaleOrdinal(colorArray[0])
+
+
+var x = d3.scaleBand()
+              .range([0, width])
+              .padding(0.1);
+var y = d3.scaleLinear()
+          .range([height, 0]);
+// we are appending SVG first
+const svg = d3.select("div#container").append("svg")
+    .attr("preserveAspectRatio", "xMinYMin meet")
+    .attr("viewBox", "-"
+          + adj + " -"
+          + adj + " "
+          + (width + adj *3) + " "
+          + (height + adj*3))
+    .style("padding", padding)
+    .style("margin", margin)
+    .classed("svg-content", true);
+
+//-----------------------------DATA-----------------------------//
+const timeConv = d3.timeParse("%Y-%m-%d");
+const dataset = d3.csv("boardgame_ratings.csv");
+//console.log(dataset)
+dataset.then(function(data) {
+    var slices = data.columns.slice(1).map(function(id) {
+        
+        //if (id.includes("rank") == false) {
+            console.log(id);
+            return {
+
+                id: id,
+                values: data.map(function(d){
+
+                    return {
+                        date: timeConv(d.date),
+                        measurement: +d[id]
+                    };
+                })
+            };
+        //}
+    });
+
+console.log(slices);
+
+ranks = []
+for (var i = 0; i<slices.length-1; i+=2){
+    if(i==0){
+        ranks[i] = slices[i];
+    }
+    else {
+        ranks.push(slices[i]);
+    }
+}
+var i = 0;
+var j = 0;
+
+//console.log(ranks)
+//----------------------------SCALES----------------------------//
+const xScale = d3.scaleTime().range([0,width-50]);
+
+const yScale = d3.scaleLinear().rangeRound([height, 0]);
+xScale.domain(d3.extent(data, function(d){
+    return timeConv(d.date)}));
+yScale.domain([(0), d3.max(slices, function(c) {
+    return d3.max(c.values, function(d) {
+        return d.measurement; });
+        })
+    ]);
+
+//-----------------------------AXES-----------------------------//
+const yaxis = d3.axisLeft(y)
+    .ticks(10)
+    .scale(yScale);
+
+const xaxis = d3.axisBottom(x)
+    .ticks(d3.timeMonth.every(3))
+    .tickFormat(d3.timeFormat('%b %y'))
+    .scale(xScale);
+
+
+//----------------------------LINES-----------------------------//
+const line = d3.line()
+    .x(function(d) { return xScale(d.date); })
+    .y(function(d) { 
+        //console.log(d);
+        return yScale(d.measurement); }); 
+
+const color = function(){
+    return colorScheme(i++)
+}  
+
+const color1= function(){
+    return colorScheme(j++)
+} 
+//-------------------------2. DRAWING---------------------------//
+//-----------------------------AXES-----------------------------//
+svg.append("g")
+    .attr("class", "axis")
+    .attr("transform", "translate(20," + (height) + ")")
+    .call(xaxis)
+    .append("text")
+    .text("Month")
+    .attr("x", width/2)
+    .attr("dy", "4em");
+
+svg.append("g")
+    .attr("class", "axis")
+    .call(yaxis)
+    .attr("transform", "translate(20,0)")
+    .append("text")
+    .attr("transform", "rotate(-90)")
+    .attr("y", 0-(margin.left)-30)
+    .attr("x",0 - (height/2))
+    .attr("dy", "-5em")
+    .style("text-anchor", "middle")
+    .text("Running Total");
+//----------------------------LINES-----------------------------//
+console.log(ranks);
+const lines = svg.selectAll("lines")
+    .data(ranks)
+    .enter()
+    .append("g");
+
+    lines.append("path")
+    .attr("class", "line")
+    .attr("transform", "translate(20,0)")
+    .style("stroke", color)
+    .attr("d", function(d) { return line(d.values); });
+
+    i = 0;
+
+    lines.append("text")
+    .attr("class","serie_label")
+    .attr("dx", "1em")
+    .datum(function(d) {
+        return {
+            id: d.id,
+            value: d.values[d.values.length - 1]}; })
+    .attr("transform", function(d) {
+            return "translate(" + (xScale(d.value.date) + 10)  
+            + "," + (yScale(d.value.measurement)  ) + ")"; })
+    .attr("x", 5)
+    .text(function(d) { return d.id.replace('=count', ''); })
+    .style("fill", color1);
+
+});
+</script>
+</body>
